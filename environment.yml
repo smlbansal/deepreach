@@ -1,6 +1,5 @@
 name: siren
 channels:
-  - pytorch
   - conda-forge
   - defaults
 dependencies:
@@ -142,7 +141,6 @@ dependencies:
   - python=3.6.10=h7579374_2
   - python-dateutil=2.8.1=py_0
   - python_abi=3.6=1_cp36m
-  - pytorch=1.5.0=py3.6_cuda10.1.243_cudnn7.6.3_0
   - pywavelets=1.1.1=py36h7b6447c_0
   - pyyaml=5.3.1=py36h7b6447c_0
   - pyzmq=18.1.1=py36he6710b0_0
@@ -167,7 +165,6 @@ dependencies:
   - testpath=0.4.4=py_0
   - tk=8.6.8=hbc83047_0
   - toolz=0.10.0=py_0
-  - torchvision=0.6.0=py36_cu101
   - tornado=6.0.4=py36h7b6447c_1
   - tqdm=4.46.0=py_0
   - traitlets=4.3.3=py36_0
@@ -198,6 +195,7 @@ dependencies:
   - pip:
     - astor==0.8.1
     - cmapy==0.6.6
+    - dataclasses==0.8
     - gast==0.2.2
     - google-pasta==0.2.0
     - imageio-ffmpeg==0.4.2
@@ -214,6 +212,8 @@ dependencies:
     - tensorflow==1.15.0
     - tensorflow-estimator==1.15.1
     - termcolor==1.1.0
+    - torch==1.9.1+cu111
+    - torchvision==0.10.1+cu111
+    - typing-extensions==4.1.1
     - wrapt==1.12.1
     - youtube-dl==2020.6.6
-
