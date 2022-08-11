@@ -50,10 +50,10 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     writer = SummaryWriter(summaries_dir)
 
     total_steps = 0
-    with tqdm(total=len(train_dataloader) * epochs) as pbar:
+    with tqdm(total=len(train_dataloader) * (epochs - start_epoch)) as pbar:
         train_losses = []
         for epoch in range(start_epoch, epochs):
-            if not epoch % epochs_til_checkpoint and epoch:
+            if not epoch % epochs_til_checkpoint and epoch != start_epoch:
                 # Saving the optimizer state is important to produce consistent results
                 checkpoint = { 
                     'epoch': epoch,
