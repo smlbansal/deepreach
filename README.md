@@ -1,31 +1,41 @@
 # DeepReach: A Deep Learning Approach to High-Dimensional Reachability
 ### [Project Page](http://people.eecs.berkeley.edu/~somil/index.html) | [Paper](https://arxiv.org/pdf/2011.02082.pdf)<br>
 
+Repository Maintainers<br>
+[Albert Lin](https://www.linkedin.com/in/albertkuilin/),
+[Zeyuan Feng](https://thezeyuanfeng.github.io/),
+[Javier Borquez](https://javierborquez.github.io/),
+[Somil Bansal](http://people.eecs.berkeley.edu/~somil/index.html)<br>
+University of Southern California
+
+Original Authors<br>
 [Somil Bansal](http://people.eecs.berkeley.edu/~somil/index.html),
 Claire Tomlin<br>
 University of California, Berkeley
 
-This is the official implementation of the paper "DeepReach: A Deep Learning Approach to High-Dimensional Reachability".
+This is the newest official implementation of the paper "DeepReach: A Deep Learning Approach to High-Dimensional Reachability".
 
-## Get started
+## High-Level Structure
+The code is organized as follows:
+* dynamics/dynamics.py defines the dynamics of the system.
+* experiments/experiments.py contains generic training routines.
+* utils/modules.py contains layers and full neural network modules.
+* utils/dataio.py loads training and testing data.
+* utils/diff_operators.py contains implementations of differential operators.
+* utils/losses.py contains loss functions for the different reachability cases.
+* run_experiment.py starts a standard DeepReach run.
+
+## Tutorial
+Follow along these [tutorial slides](https://docs.google.com/presentation/d/19zxhvZAHgVYDCRpCej2svCw21iRvcxQ0/edit?usp=drive_link&ouid=113852163991034806329&rtpof=true&sd=true) to get started, or continue reading below.
+
+## Getting Started
 You can then set up a conda environment with all dependencies like so:
 ```
 conda env create -f environment.yml
 conda activate siren
 ```
 
-## High-Level structure
-The code is organized as follows:
-* dataio.py loads training and testing data.
-* training.py contains a generic training routine.
-* modules.py contains layers and full neural network modules.
-* utils.py contains utility functions.
-* diff_operators.py contains implementations of differential operators.
-* loss_functions.py contains loss functions for the different experiments.
-* ./experiment_scripts/ contains scripts to reproduce experiments in the paper.
-* ./validation_scripts/ contains scripts to reproduce figures in the paper.
-
-## Reproducing experiments
+## Running DeepReach
 The directory `experiment_scripts` contains one script per experiment in the paper.
 
 To monitor progress, the training code writes tensorboard summaries into a "summaries"" subdirectory in the logging_root.
@@ -45,8 +55,19 @@ To visualize the trained BRTs, please run:
 CUDA_VISIBLE_DEVICES=0 python validation_scripts/air3D_valfunc_and_BRT.py 
 ```
 
+## Defining a Custom System
+
 ## Citation
 If you find our work useful in your research, please cite:
+```
+@software{deepreach2024,
+  author = {Lin, Albert and Feng, Zeyuan and Borquez, Javier and Bansal, Somil},
+  title = {{DeepReach Repository}},
+  url = {https://github.com/smlbansal/deepreach},
+  year = {2024}
+}
+```
+
 ```
 @inproceedings{bansal2020deepreach,
     author = {Bansal, Somil
