@@ -46,9 +46,9 @@ tenacity==8.2.3
 tensorboard==2.16.2
 tensorboard-data-server==0.7.2
 threadpoolctl==3.3.0
-torch==2.2.1+cu121
-torchaudio==2.2.1+cu121
-torchvision==0.17.1+cu121
+#torch==2.2.1+cu121
+#torchaudio==2.2.1+cu121
+#torchvision==0.17.1+cu121
 tqdm==4.66.2
 typing_extensions==4.8.0
 tzdata==2024.1
