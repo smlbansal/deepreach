@@ -20,9 +20,14 @@ p.add_argument('--mode', type=str, required=True, choices=['all', 'train', 'test
 # save/load directory options
 p.add_argument('--experiments_dir', type=str, default='./runs', help='Where to save the experiment subdirectory.')
 p.add_argument('--experiment_name', type=str, required=True, help='Name of the experient subdirectory.')
-p.add_argument('--wandb_project', type=str, required=True, help='wandb project')
-p.add_argument('--wandb_group', type=str, required=True, help='wandb group')
-p.add_argument('--wandb_name', type=str, required=True, help='name of wandb run')
+p.add_argument('--use_wandb', default=False, action='store_true', help='use wandb for logging')
+
+use_wandb = p.parse_known_args()[0].use_wandb
+if use_wandb:
+    p.add_argument('--wandb_project', type=str, required=True, help='wandb project')
+    p.add_argument('--wandb_entity', type=str, required=True, help='wandb entity')
+    p.add_argument('--wandb_group', type=str, required=True, help='wandb group')
+    p.add_argument('--wandb_name', type=str, required=True, help='name of wandb run')
 
 mode = p.parse_known_args()[0].mode
 
@@ -109,13 +114,14 @@ if (mode == 'all') or (mode == 'test'):
 opt = p.parse_args()
 
 # start wandb
-wandb.init(
-    project = opt.wandb_project,
-    entity = "aklin",
-    group = opt.wandb_group,
-    name = opt.wandb_name,
-)
-wandb.config.update(opt)
+if use_wandb:
+    wandb.init(
+        project = opt.wandb_project,
+        entity = opt.wandb_entity,
+        group = opt.wandb_group,
+        name = opt.wandb_name,
+    )
+    wandb.config.update(opt)
 
 experiment_dir = os.path.join(opt.experiments_dir, opt.experiment_name)
 if (mode == 'all') or (mode == 'train'):
@@ -171,7 +177,7 @@ model = modules.SingleBVPNet(in_features=dynamics.input_dim, out_features=1, typ
 model.cuda()
 
 experiment_class = getattr(experiments, orig_opt.experiment_class)
-experiment = experiment_class(model=model, dataset=dataset, experiment_dir=experiment_dir)
+experiment = experiment_class(model=model, dataset=dataset, experiment_dir=experiment_dir, use_wandb=use_wandb)
 experiment.init_special(**{argname: getattr(orig_opt, argname) for argname in inspect.signature(experiment_class.init_special).parameters.keys() if argname != 'self'})
 
 if (mode == 'all') or (mode == 'train'):

@@ -1,6 +1,8 @@
 import torch
 from torch.autograd import grad
 
+# TODO: I don't think jacobian is needed here; torch.autograd.grad should be enough, to compute gradients of a scalar value function w.r.t. inputs
+
 # batched jacobian
 # y: [..., N], x: [..., M] -> [..., N, M]
 def jacobian(y, x):

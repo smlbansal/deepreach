@@ -22,10 +22,11 @@ from utils import diff_operators
 from utils.error_evaluators import scenario_optimization, ValueThresholdValidator, MultiValidator, MLPConditionedValidator, target_fraction, MLP, MLPValidator, SliceSampleGenerator
 
 class Experiment(ABC):
-    def __init__(self, model, dataset, experiment_dir):
+    def __init__(self, model, dataset, experiment_dir, use_wandb):
         self.model = model
         self.dataset = dataset
         self.experiment_dir = experiment_dir
+        self.use_wandb = use_wandb
 
     @abstractmethod
     def init_special(self):
@@ -76,10 +77,11 @@ class Experiment(ABC):
                 s = ax.imshow(1*(values.detach().cpu().numpy().reshape(x_resolution, y_resolution).T <= 0), cmap='bwr', origin='lower', extent=(-1., 1., -1., 1.))
                 fig.colorbar(s) 
         fig.savefig(save_path)
-        wandb.log({
-            'step': epoch,
-            'val_plot': wandb.Image(fig),
-        })
+        if self.use_wandb:
+            wandb.log({
+                'step': epoch,
+                'val_plot': wandb.Image(fig),
+            })
         plt.close()
 
         if was_training:
@@ -251,10 +253,11 @@ class Experiment(ABC):
 
                     if not total_steps % steps_til_summary:
                         tqdm.write("Epoch %d, Total loss %0.6f, iteration time %0.6f" % (epoch, train_loss, time.time() - start_time))
-                        wandb.log({
-                            'step': epoch,
-                            'train_loss': train_loss,
-                        })
+                        if self.use_wandb:
+                            wandb.log({
+                                'step': epoch,
+                                'train_loss': train_loss,
+                            })
 
                     total_steps += 1
 
@@ -316,10 +319,11 @@ class Experiment(ABC):
                     CSL_val_errors = CSL_val_preds - CSL_val_costs.cuda()
                     CSL_val_loss = torch.mean(torch.pow(CSL_val_errors, 2))
                     CSL_initial_val_loss = CSL_val_loss
-                    wandb.log({
-                        "step": epoch,
-                        "CSL_val_loss": CSL_val_loss.item()
-                    })
+                    if self.use_wandb:
+                        wandb.log({
+                            "step": epoch,
+                            "CSL_val_loss": CSL_val_loss.item()
+                        })
 
                     # initial self-supervised learning (SSL) val loss
                     # right now, just took code from dataio.py and the SSL training loop above; TODO: refactor all this for cleaner modular code
@@ -337,10 +341,11 @@ class Experiment(ABC):
                     else:
                         NotImplementedError
                     SSL_val_loss = SSL_val_losses['diff_constraint_hom'].mean() # I assume there is no dirichlet (boundary) loss here, because I do not ever explicitly generate source samples at tMin (i.e. torch.all(CSL_val_dirichlet_masks == False))
-                    wandb.log({
-                        "step": epoch,
-                        "SSL_val_loss": SSL_val_loss.item()
-                    })
+                    if self.use_wandb:
+                        wandb.log({
+                            "step": epoch,
+                            "SSL_val_loss": SSL_val_loss.item()
+                        })
 
                     # CSL training loop
                     for CSL_epoch in tqdm(range(max_CSL_epochs)):
@@ -423,20 +428,21 @@ class Experiment(ABC):
                             CSL_val_tMax_recovered_safe_set_frac = torch.sum(CSL_val_tMax_preds > torch.max(CSL_val_tMax_preds[CSL_val_tMax_costs.cuda() < 0])) / len(CSL_val_tMax_preds)
                         else:
                             raise NotImplementedError
-                        wandb.log({
-                            "step": epoch+(CSL_epoch+1)*int(0.5*epochs_til_CSL/max_CSL_epochs),
-                            "CSL_train_batch_loss": CSL_batch_loss.item(),
-                            "SSL_train_batch_loss": SSL_batch_loss.item(),
-                            "CSL_val_loss": CSL_val_loss.item(),
-                            "SSL_val_loss": SSL_val_loss.item(),
-                            "CSL_val_tMax_loss": CSL_val_tMax_loss.item(),
-                            "CSL_train_batch_theoretically_recoverable_safe_set_frac": CSL_train_batch_theoretically_recoverable_safe_set_frac.item(),
-                            "CSL_val_theoretically_recoverable_safe_set_frac": CSL_val_theoretically_recoverable_safe_set_frac.item(),
-                            "CSL_val_tMax_theoretically_recoverable_safe_set_frac": CSL_val_tMax_theoretically_recoverable_safe_set_frac.item(),
-                            "CSL_train_batch_recovered_safe_set_frac": CSL_train_batch_recovered_safe_set_frac.item(),
-                            "CSL_val_recovered_safe_set_frac": CSL_val_recovered_safe_set_frac.item(),
-                            "CSL_val_tMax_recovered_safe_set_frac": CSL_val_tMax_recovered_safe_set_frac.item(),
-                        })
+                        if self.use_wandb:
+                            wandb.log({
+                                "step": epoch+(CSL_epoch+1)*int(0.5*epochs_til_CSL/max_CSL_epochs),
+                                "CSL_train_batch_loss": CSL_batch_loss.item(),
+                                "SSL_train_batch_loss": SSL_batch_loss.item(),
+                                "CSL_val_loss": CSL_val_loss.item(),
+                                "SSL_val_loss": SSL_val_loss.item(),
+                                "CSL_val_tMax_loss": CSL_val_tMax_loss.item(),
+                                "CSL_train_batch_theoretically_recoverable_safe_set_frac": CSL_train_batch_theoretically_recoverable_safe_set_frac.item(),
+                                "CSL_val_theoretically_recoverable_safe_set_frac": CSL_val_theoretically_recoverable_safe_set_frac.item(),
+                                "CSL_val_tMax_theoretically_recoverable_safe_set_frac": CSL_val_tMax_theoretically_recoverable_safe_set_frac.item(),
+                                "CSL_train_batch_recovered_safe_set_frac": CSL_train_batch_recovered_safe_set_frac.item(),
+                                "CSL_val_recovered_safe_set_frac": CSL_val_recovered_safe_set_frac.item(),
+                                "CSL_val_tMax_recovered_safe_set_frac": CSL_val_tMax_recovered_safe_set_frac.item(),
+                            })
 
                         if CSL_val_loss < CSL_loss_frac_cutoff*CSL_initial_val_loss:
                             break

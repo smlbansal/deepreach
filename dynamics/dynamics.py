@@ -7,7 +7,7 @@ import torch
 # during training, states will be sampled uniformly by each state dimension from the model-unit -1 to 1 range (for training stability),
 # which may or may not correspond to proper test ranges
 # note that coord refers to [time, *state], and input refers to whatever is fed directly to the model (often [time, *state, params])
-# in the future, code will need to be fixed to correctly handle parametrized models
+# in the future, code will need to be fixed to correctly handle parameterized models
 class Dynamics(ABC):
     def __init__(self, 
     loss_type:str, set_mode:str, 
