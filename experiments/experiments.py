@@ -20,6 +20,24 @@ from utils.error_evaluators import scenario_optimization, ValueThresholdValidato
 import seaborn as sns
 
 
+def flatten_dict(d, parent_key='', sep='/'):
+    items = {}
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict):
+            items.update(flatten_dict(v, new_key, sep=sep))
+        else:
+            items[new_key] = v
+    return items
+
+
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+
 
 class Experiment(ABC):
     def __init__(self, model, dataset, experiment_dir, use_wandb):
@@ -70,7 +88,7 @@ class Experiment(ABC):
                                       history_size=50, line_search_fn='strong_wolfe')
 
         training_dir = os.path.join(self.experiment_dir, 'training')
-
+        self.training_dir = training_dir
         summaries_dir = os.path.join(training_dir, 'summaries')
         if not os.path.exists(summaries_dir):
             os.makedirs(summaries_dir)
@@ -83,9 +101,18 @@ class Experiment(ABC):
 
         total_steps = 0
 
-
-        self.last_refine_time=math.floor(min(1.0, self.dataset.counter/self.dataset.counter_end)* \
-                                   (self.dataset.tMax-self.dataset.tMin)/self.dataset.time_till_refinement)*self.dataset.time_till_refinement
+        if self.dataset.refinement_schedule is not None:
+            self.last_refine_time = 0.0
+            self.refinement_schedule_index = 0
+        else:
+            self.last_refine_time = (
+                math.floor(
+                    min(1.0, self.dataset.counter / self.dataset.counter_end)
+                    * (self.dataset.tMax - self.dataset.tMin)
+                    / self.dataset.time_till_refinement
+                )
+                * self.dataset.time_till_refinement
+            )
         self.use_MPC_terminal_loss=False
 
         with tqdm(total=len(train_dataloader) * epochs) as pbar:
@@ -103,9 +130,8 @@ class Experiment(ABC):
                 for step, (model_input, gt) in enumerate(train_dataloader):
                     start_time = time.time()
 
-                    model_input = {key: value.cuda()
-                                   for key, value in model_input.items()}
-                    gt = {key: value.cuda() for key, value in gt.items()}
+                    model_input = {key: value.to(device) for key, value in model_input.items()}
+                    gt = {key: value.to(device) for key, value in gt.items()}
 
                     model_results = self.model(
                         {'coords': model_input['model_inputs']})
@@ -128,7 +154,7 @@ class Experiment(ABC):
                             MPC_results['model_in'].detach(), MPC_results['model_out'].squeeze(dim=-1))
    
                     else:
-                        MPC_values=torch.Tensor([0]).cuda()
+                        MPC_values = torch.Tensor([0]).to(device)
                         
 
                     # Compute losses
@@ -419,8 +445,8 @@ class Experiment(ABC):
 
             
             if data_step == "eval_w_gt":
-                coords=torch.load(os.path.join(gt_data_path,"coords.pt")).cuda()
-                gt_values=torch.load(os.path.join(gt_data_path,"gt_values.pt")).cuda()
+                coords = torch.load(os.path.join(gt_data_path, "coords.pt")).to(device)
+                gt_values = torch.load(os.path.join(gt_data_path, "gt_values.pt")).to(device)
                 with torch.no_grad():
                     results = model(
                         {'coords': self.dataset.dynamics.coord_to_input(coords)})
@@ -816,7 +842,7 @@ class Experiment(ABC):
                     coords[:, 2:] = (xys[:, 1] * torch.ones(self.dataset.dynamics.N-1, xys.size()[0])).t()
 
                     with torch.no_grad():
-                        model_results = self.model({'coords': self.dataset.dynamics.coord_to_input(coords.cuda())})
+                        model_results = self.model({'coords': self.dataset.dynamics.coord_to_input(coords.to(device))})
                         values = self.dataset.dynamics.io_to_value(model_results['model_in'].detach(), model_results['model_out'].squeeze(dim=-1).detach())
                     
                     learned_value = values.detach().cpu().numpy().reshape(x_resolution, y_resolution)
@@ -907,7 +933,7 @@ class Experiment(ABC):
 
             with torch.no_grad():
                 model_results = self.model(
-                    {'coords': self.dataset.dynamics.coord_to_input(coords.cuda())})
+                    {'coords': self.dataset.dynamics.coord_to_input(coords.to(device))})
 
                 values = self.dataset.dynamics.io_to_value(model_results['model_in'].detach(
                 ), model_results['model_out'].squeeze(dim=-1).detach())
@@ -925,7 +951,7 @@ class Experiment(ABC):
                 'origin': 'lower',
             }
             ax.imshow(BRT_img, **imshow_kwargs)
-            lx=self.dataset.dynamics.boundary_fn(coords.cuda()[...,1:]).detach().cpu().numpy().reshape(x_resolution, y_resolution).T
+            lx=self.dataset.dynamics.boundary_fn(coords.to(device)[...,1:]).detach().cpu().numpy().reshape(x_resolution, y_resolution).T
             zero_contour = ax.contour(X, 
                                 Y, 
                                 BRT_img, 
@@ -974,10 +1000,10 @@ class Experiment(ABC):
                 coords[:, 1 + plot_config['y_axis_idx']] = xys[:, 1]
                 coords[:, 1 + plot_config['z_axis_idx']] = zs[j]
 
-                lx=self.dataset.dynamics.boundary_fn(coords.cuda()[...,1:]).detach().cpu().numpy().reshape(x_resolution, y_resolution).T
+                lx=self.dataset.dynamics.boundary_fn(coords.to(device)[...,1:]).detach().cpu().numpy().reshape(x_resolution, y_resolution).T
                 with torch.no_grad():
                     model_results = self.model(
-                        {'coords': self.dataset.dynamics.coord_to_input(coords.cuda())})
+                        {'coords': self.dataset.dynamics.coord_to_input(coords.to(device))})
                     values = self.dataset.dynamics.io_to_value(model_results['model_in'].detach(
                         ), model_results['model_out'].squeeze(dim=-1).detach())
 
@@ -1142,34 +1168,50 @@ class Experiment(ABC):
             self.loss_weights['mpc_loss'] =min( 0.9*self.loss_weights['mpc_loss'] + 0.1*self.mpc_importance_coef*num/(den+1e-16), 1e5)
 
     def dataset_refinement(self, time_interval_length, epoch):
-        if time_interval_length>=(self.last_refine_time+self.dataset.time_till_refinement) and self.dataset.use_MPC:
-            # If we reach H_R (time_till_refinement), then we generate a new dataset
-            # with an extra H_R horizon by leveraging the learned value function
-            self.last_refine_time+=self.dataset.time_till_refinement
-            # update deepreach model
-            self.dataset.policy=self.model
-            # update data
-            if time_interval_length<self.dataset.tMax:
-                refine_till_t=time_interval_length+self.dataset.time_till_refinement # new total horizon, note that MPC effective horizon = H_R
-                self.dataset.generate_MPC_dataset(
-                            refine_till_t , time_interval_length, style="random")
-                
-            else:  # take extra care when time curriculum end, and transition to finetuning phase
+        should_refine = False
+        next_refine_time = None
+
+        if self.dataset.refinement_schedule is not None:
+            if hasattr(self, "refinement_schedule_index") and self.refinement_schedule_index < len(
+                self.dataset.refinement_schedule
+            ):
+                next_refine_time = self.dataset.refinement_schedule[self.refinement_schedule_index]
+                should_refine = time_interval_length >= next_refine_time
+            else:
+                should_refine = False
+        else:
+            should_refine = time_interval_length >= (self.last_refine_time + self.dataset.time_till_refinement)
+            if should_refine:
+                next_refine_time = self.last_refine_time + self.dataset.time_till_refinement
+
+        if should_refine and self.dataset.use_MPC:
+            if self.dataset.refinement_schedule is not None:
+                self.last_refine_time = next_refine_time
+                self.refinement_schedule_index += 1
+                if self.refinement_schedule_index < len(self.dataset.refinement_schedule):
+                    refine_till_t = self.dataset.refinement_schedule[self.refinement_schedule_index]
+                else:
+                    refine_till_t = self.dataset.tMax
+            else:
+                self.last_refine_time += self.dataset.time_till_refinement
+                refine_till_t = time_interval_length + self.dataset.time_till_refinement
+
+            self.dataset.policy = self.model
+
+            if refine_till_t < self.dataset.tMax:
+                self.dataset.generate_MPC_dataset(refine_till_t, time_interval_length, style="random")
+            else:
                 self.dataset.use_terminal_MPC()
                 for g in self.optim.param_groups:
-                    g['lr'] = 1e-6 # TODO: make it a hyperparam
+                    g['lr'] = 1e-6
                 self.use_MPC_terminal_loss=True
-                self.MPC_importance_final=1.0 # TODO: make it a hyperparam
+                self.MPC_importance_final=1.0
                 self.MPC_importance_init=1.0
                 self.dataset.policy=self.model
-                
-    
                 refine_till_t=self.dataset.tMax
-                self.dataset.generate_MPC_dataset(
-                            refine_till_t , refine_till_t, style="terminal")
-                
+                self.dataset.generate_MPC_dataset(refine_till_t, refine_till_t, style="terminal")
+
         if time_interval_length>=self.dataset.tMax and epoch%self.dataset.epoch_till_refinement== 0 and self.dataset.use_MPC:
-            # in case we want a long finetuning phase, we regenerate the dataset every epoch_till_refinement epochs
             for g in self.optim.param_groups:
                 g['lr'] = 1e-6
             self.use_MPC_terminal_loss=True
@@ -1248,7 +1290,7 @@ class Experiment(ABC):
                 coords[:, 1 + plot_config['z_axis_idx']] = zs[i]
 
             model_results = model(
-                {'coords': dataset.dynamics.coord_to_input(coords.cuda())})
+                {'coords': dataset.dynamics.coord_to_input(coords.to(device))})
             values = dataset.dynamics.io_to_value(model_results['model_in'].detach(
             ), model_results['model_out'].detach().squeeze(dim=-1)).detach().cpu()
             value_grids[i] = values.reshape(len(xs), len(ys))
