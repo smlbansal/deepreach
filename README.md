@@ -123,5 +123,23 @@ If you find our methods or code useful in your research, please consider citing:
       url={https://arxiv.org/abs/2011.02082}, 
 }
 ```
+If you find the verification tool useful in your research, please consider citing:
+```bibtex
+@InProceedings{pmlr-v242-lin24a,
+  title = 	 {Verification of neural reachable tubes via scenario optimization and conformal prediction},
+  author =       {Lin, Albert and Bansal, Somil},
+  booktitle = 	 {Proceedings of the 6th Annual Learning for Dynamics &amp; Control Conference},
+  pages = 	 {719--731},
+  year = 	 {2024},
+  editor = 	 {Abate, Alessandro and Cannon, Mark and Margellos, Kostas and Papachristodoulou, Antonis},
+  volume = 	 {242},
+  series = 	 {Proceedings of Machine Learning Research},
+  month = 	 {15--17 Jul},
+  publisher =    {PMLR},
+  pdf = 	 {https://proceedings.mlr.press/v242/lin24a/lin24a.pdf},
+  url = 	 {https://proceedings.mlr.press/v242/lin24a.html},
+}
+
+```
 
 For any questions, please feel free to open an issue.
